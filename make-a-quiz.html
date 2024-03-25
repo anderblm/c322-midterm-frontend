@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create a Quiz</title>
+<link rel="stylesheet" href="navbar.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="make-a-quiz.css">
+<link rel="stylesheet" href="cards.css"> <!-- Added cards.css for card styling -->
+</head>
+<body>
+<ul class="topnav">
+  <li><a class="active" href="index.html">Home</a></li>
+  <li><a href="add-question.html">Add questions</a></li>
+  <li><a href="make-a-quiz.html">Create a quiz</a></li>
+  <li><a href="take-a-quiz.html">Take a quiz</a></li>
+  <li class="right"><a href="#about">About</a></li>
+</ul>
+
+<div class="container">
+  <h2>Create a Quiz</h2>
+  <form id="quizForm">
+    <label for="quizTitle">Quiz Title:</label><br>
+    <input type="text" id="quizTitle" name="quizTitle" required><br><br>
+
+    <!-- Questions Bank with .questions class -->
+    <div class="questions">
+      <label for="questionsBank">Questions Bank:</label><br>
+      <select id="questionsBank" name="questionsBank" multiple size="5" required>
+        <!-- Options will be dynamically added here -->
+      </select><br><br>
+
+      <!-- Cards will be displayed here -->
+      <div id="list" class="cards"></div> <!-- This is where the cards will be displayed -->
+
+    </div>
+
+    <button type="button" onclick="addQuestionToQuiz()">Add Question to Quiz</button><br><br>
+
+    <!-- Selected Questions with .quiz class -->
+    <div id="selectedQuestionsContainer" class="quiz">
+      <label for="selectedQuestions">Selected Questions:</label><br>
+      <select id="selectedQuestions" name="selectedQuestions" multiple size="5" required>
+        <!-- Selected questions will appear here -->
+      </select><br><br>
+    </div>
+
+    <button type="button" onclick="saveQuizChanges()">Save your changes</button>
+    <button type="button" onclick="saveAndStartNew()">Save this quiz and start a new one</button>
+  </form>
+</div>
+
+<script src="script.js"></script>
+<script>
+  let host = "http://localhost:8080";
+  let questions = [];
+  let selectedQuestions = []; // Array to store selected questions
+
+  displayTheQuestions();
+
+  async function getAll() {
+    let response = await fetch(host + "/questions");
+    let result = await response.json();
+    return result;
+  }
+
+  async function displayTheQuestions() {
+    if (questions.length == 0) {
+      questions = await getAll();
+    }
+
+    let list = document.getElementById("list");
+    list.innerHTML = "";
+
+    for (let question of questions) {
+      let div = document.createElement("div");
+      div.className = "card";
+      div.setAttribute("onclick", `selectQuestion(${question.id})`); // Add onclick event to select question
+      let innerHtml = `
+     
+    <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
+    <div class="container">
+      <h4><b>${question.id}</b></h4> 
+      <p>${question.description}</p>
+      <form>
+          <input type="radio" id="q${question.id}ptionA" name="q2Answer" value="A">
+          <label for="q${question.id}ptionA">${question.choices[0]}</label><br>
+
+          <input type="radio" id="q${question.id}ptionB" name="q2Answer" value="B">
+          <label for="q${question.id}ptionB">${question.choices[1]}</label><br>
+
+          <input type="radio" id="q${question.id}ptionC" name="q2Answer" value="C">
+          <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
+      </form> 
+    </div>
+ 
+        `;
+      div.innerHTML = innerHtml;
+      list.appendChild(div);
+    }
+  }
+
+  // Function to handle selecting a question
+  function selectQuestion(questionId) {
+    let selectedQuestion = questions.find(question => question.id === questionId);
+    selectedQuestions.push(selectedQuestion); // Add selected question to array
+    updateSelectedQuestionsList(); // Update the selected questions list
+  }
+
+  // Function to update the selected questions list
+  function updateSelectedQuestionsList() {
+    let selectedQuestionsList = document.getElementById("selectedQuestions");
+    selectedQuestionsList.innerHTML = "";
+    for (let question of selectedQuestions) {
+      let option = document.createElement("option");
+      option.value = question.id;
+      option.text = question.description;
+      selectedQuestionsList.appendChild(option);
+    }
+  }
+
+  // Function to save the quiz changes
+  async function saveQuizChanges() {
+    let quizTitle = document.getElementById("quizTitle").value;
+    if (selectedQuestions.length === 0 || quizTitle.trim() === "") {
+      alert("Please select questions and provide a quiz title.");
+      return;
+    }
+
+    let quizData = {
+      title: quizTitle,
+      questions: selectedQuestions.map(question => ({
+        id: question.id,
+        description: question.description,
+        choices: question.choices,
+        answer: question.answer
+      }))
+    };
+
+    try {
+      let response = await fetch(host + "/quizzes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(quizData)
+      });
+
+      if (response.ok) {
+        alert("Quiz saved successfully!");
+      } else {
+        alert("Error saving the quiz.");
+      }
+    } catch (error) {
+      alert("An error occurred while saving the quiz.");
+      console.error(error);
+    }
+  }
+
+  // Function to start a new quiz
+  function saveAndStartNew() {
+    saveQuizChanges(); // Save the current quiz changes
+    // Reset the form and selected questions array
+    document.getElementById("quizForm").reset();
+    selectedQuestions = [];
+    updateSelectedQuestionsList(); // Update the selected questions list
+  }
+
+  displayTheQuestions(); // Call the function to display the questions
+</script>
+</body>
+</html>

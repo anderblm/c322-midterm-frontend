@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Take a Quiz</title>
+<link rel="stylesheet" href="navbar.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="quiz.css"> <!-- Link to quiz.css -->
+</head>
+<body>
+<ul class="topnav">
+  <li><a href="index.html">Home</a></li>
+  <li><a href="add-question.html">Add questions</a></li>
+  <li><a href="make-a-quiz.html">Create a quiz</a></li>
+  <li><a class="active" href="take-a-quiz.html">Take a quiz</a></li>
+  <li class="right"><a href="#about">About</a></li>
+</ul>
+
+<div class="container">
+  <h2>Take a Quiz</h2>
+  <div id="quizQuestions">
+    <!-- Quiz questions will be displayed here -->
+  </div>
+  <div id="quizResults" style="display: none;">
+    <h3>Quiz Results</h3>
+    <p id="correctAnswers">Number of correct answers: <span id="correctCount">0</span></p>
+    <p id="totalQuestions">Total questions: <span id="totalCount">0</span></p>
+  </div>
+  <div class="controls">
+    <button id="prevButton" onclick="prevQuestion()" class="hide">Previous</button>
+    <button id="nextButton" onclick="nextQuestion()">Next</button>
+    <button id="submitButton" onclick="submitQuiz()">Submit Quiz</button>
+  </div>
+</div>
+
+<script>
+// Fetch quiz questions from the backend (replace this with actual API call)
+async function fetchQuizQuestions() {
+  try {
+    const response = await fetch("http://localhost:8080/quiz-questions");
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching quiz questions:", error);
+    return [];
+  }
+}
+
+let quizData = []; // Placeholder for quiz questions
+
+async function loadQuizQuestions() {
+  quizData = await fetchQuizQuestions();
+  if (quizData.length > 0) {
+    displayQuestion();
+  } else {
+    console.log("No quiz questions available.");
+  }
+}
+
+let currentQuestion = 0;
+let correctAnswers = 0;
+
+function displayQuestion() {
+  const quizQuestions = document.getElementById("quizQuestions");
+  quizQuestions.innerHTML = "";
+
+  const questionText = document.createElement("p");
+  questionText.textContent = quizData[currentQuestion].question;
+  quizQuestions.appendChild(questionText);
+
+  const options = quizData[currentQuestion].options;
+  for (const option of options) {
+    const radioInput = document.createElement("input");
+    radioInput.type = "radio";
+    radioInput.name = "answer";
+    radioInput.value = option;
+
+    const label = document.createElement("label");
+    label.textContent = option;
+    
+    const br = document.createElement("br");
+
+    quizQuestions.appendChild(radioInput);
+    quizQuestions.appendChild(label);
+    quizQuestions.appendChild(br);
+  }
+}
+
+function nextQuestion() {
+  const selectedAnswer = document.querySelector('input[name="answer"]:checked');
+  if (selectedAnswer) {
+    if (selectedAnswer.value === quizData[currentQuestion].answer) {
+      correctAnswers++;
+    }
+    currentQuestion++;
+    if (currentQuestion < quizData.length) {
+      displayQuestion();
+      document.getElementById("prevButton").classList.remove("hide");
+    } else {
+      showQuizResults();
+    }
+  }
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    currentQuestion--;
+    displayQuestion();
+    if (currentQuestion === 0) {
+      document.getElementById("prevButton").classList.add("hide");
+    }
+  }
+}
+
+function showQuizResults() {
+  const quizResults = document.getElementById("quizResults");
+  quizResults.style.display = "block";
+
+  const correctCount = document.getElementById("correctCount");
+  const totalCount = document.getElementById("totalCount");
+  
+  correctCount.textContent = correctAnswers;
+  totalCount.textContent = quizData.length;
+}
+
+function submitQuiz() {
+  showQuizResults();
+}
+
+// Initial function call to load quiz questions
+loadQuizQuestions();
+</script>
+
+</body>
+</html>
