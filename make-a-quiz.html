@@ -55,7 +55,6 @@
 <script>
   let host = "http://localhost:8080";
   let questions = [];
-  let selectedQuestions = []; // Array to store selected questions
 
   displayTheQuestions();
 
@@ -101,41 +100,32 @@
     }
   }
 
-  // Function to handle selecting a question
   function selectQuestion(questionId) {
     let selectedQuestion = questions.find(question => question.id === questionId);
-    selectedQuestions.push(selectedQuestion); // Add selected question to array
-    updateSelectedQuestionsList(); // Update the selected questions list
+    updateSelectedQuestionsList(selectedQuestion); // Update the selected questions list with the entire question
   }
 
-  // Function to update the selected questions list
-  function updateSelectedQuestionsList() {
+  function updateSelectedQuestionsList(selectedQuestion) {
     let selectedQuestionsList = document.getElementById("selectedQuestions");
-    selectedQuestionsList.innerHTML = "";
-    for (let question of selectedQuestions) {
-      let option = document.createElement("option");
-      option.value = question.id;
-      option.text = question.description;
-      selectedQuestionsList.appendChild(option);
-    }
+    let option = document.createElement("option");
+    option.value = selectedQuestion.id;
+    option.text = selectedQuestion.description; // Display question description
+    selectedQuestionsList.appendChild(option);
   }
 
-  // Function to save the quiz changes
   async function saveQuizChanges() {
     let quizTitle = document.getElementById("quizTitle").value;
-    if (selectedQuestions.length === 0 || quizTitle.trim() === "") {
-      alert("Please select questions and provide a quiz title.");
-      return;
+    let selectedQuestionsList = document.getElementById("selectedQuestions").options;
+    let selectedQuestionObjects = [];
+
+    for (let option of selectedQuestionsList) {
+      let selectedQuestion = questions.find(question => question.id === parseInt(option.value));
+      selectedQuestionObjects.push(selectedQuestion);
     }
 
-    let quizData = {
-      title: quizTitle,
-      questions: selectedQuestions.map(question => ({
-        id: question.id,
-        description: question.description,
-        choices: question.choices,
-        answer: question.answer
-      }))
+    let requestBody = {
+      quizTitle: quizTitle,
+      questions: selectedQuestionObjects // Send entire question objects
     };
 
     try {
@@ -144,30 +134,22 @@
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(quizData)
+        body: JSON.stringify(requestBody)
       });
 
-      if (response.ok) {
+      console.log("Response status:", response.status);
+      console.log("Response body:", await response.text()); // Log response body for debugging
+
+      if (response.status === 200) {
         alert("Quiz saved successfully!");
       } else {
-        alert("Error saving the quiz.");
+        throw new Error("Error saving the quiz.");
       }
     } catch (error) {
-      alert("An error occurred while saving the quiz.");
       console.error(error);
+      alert("An error occurred while saving the quiz.");
     }
   }
-
-  // Function to start a new quiz
-  function saveAndStartNew() {
-    saveQuizChanges(); // Save the current quiz changes
-    // Reset the form and selected questions array
-    document.getElementById("quizForm").reset();
-    selectedQuestions = [];
-    updateSelectedQuestionsList(); // Update the selected questions list
-  }
-
-  displayTheQuestions(); // Call the function to display the questions
 </script>
 </body>
 </html>
