@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create a Quiz</title>
 <link rel="stylesheet" href="navbar.css">
-<link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="make-a-quiz.css">
 <link rel="stylesheet" href="cards.css"> <!-- Added cards.css for card styling -->
 </head>
 <body>
 <ul class="topnav">
-  <li><a class="active" href="index.html">Home</a></li>
+  <li><a href="index.html">Home</a></li>
   <li><a href="add-question.html">Add questions</a></li>
-  <li><a href="make-a-quiz.html">Create a quiz</a></li>
+  <li><a class="active" href="make-a-quiz.html">Create a quiz</a></li>
   <li><a href="take-a-quiz.html">Take a quiz</a></li>
   <li class="right"><a href="#about">About</a></li>
 </ul>
@@ -40,6 +39,7 @@
 
     <!-- Selected Questions with .quiz class -->
     <div id="selectedQuestionsContainer" class="quiz">
+      <div id="cardSelected" class="cards"></div> <!-- This is where the cards will be displayed -->
       <label for="selectedQuestions">Selected Questions:</label><br>
       <select id="selectedQuestions" name="selectedQuestions" multiple size="5" required>
         <!-- Selected questions will appear here -->
@@ -51,16 +51,18 @@
   </form>
 </div>
 
-<script src="script.js"></script>
+<!-- <script src="script.js"></script> -->
 <script>
   let host = "http://localhost:8080";
   let questions = [];
+  let selectedQuestions = []; // Array to store selected questions
 
   displayTheQuestions();
 
   async function getAll() {
     let response = await fetch(host + "/questions");
     let result = await response.json();
+    console.log(result);
     return result;
   }
 
@@ -73,11 +75,46 @@
     list.innerHTML = "";
 
     for (let question of questions) {
+      if (!selectedQuestions.includes(question)) {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.setAttribute("onclick", `selectQuestion(${question.id})`); // Add onclick event to select question
+        let innerHtml = `
+      
+      <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
+      <div class="container">
+        <h4><b>${question.id}</b></h4> 
+        <p>${question.description}</p>
+        <form>
+            <input type="radio" id="q${question.id}ptionA" name="q2Answer" value="A">
+            <label for="q${question.id}ptionA">${question.choices[0]}</label><br>
+
+            <input type="radio" id="q${question.id}ptionB" name="q2Answer" value="B">
+            <label for="q${question.id}ptionB">${question.choices[1]}</label><br>
+
+            <input type="radio" id="q${question.id}ptionC" name="q2Answer" value="C">
+            <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
+        </form> 
+      </div>
+  
+          `;
+        div.innerHTML = innerHtml;
+        list.appendChild(div);
+      }
+    }
+  }
+
+  async function displaySelectedQuestions() {
+
+    let list = document.getElementById("cardSelected");
+    list.innerHTML = "";
+
+    for (let question of selectedQuestions) {
       let div = document.createElement("div");
       div.className = "card";
       div.setAttribute("onclick", `selectQuestion(${question.id})`); // Add onclick event to select question
       let innerHtml = `
-     
+    
     <img src="http://localhost:8080/questions/${question.id}/image" alt="question" style="width:100%">
     <div class="container">
       <h4><b>${question.id}</b></h4> 
@@ -93,39 +130,51 @@
           <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
       </form> 
     </div>
- 
+
         `;
       div.innerHTML = innerHtml;
       list.appendChild(div);
     }
   }
 
-  function selectQuestion(questionId) {
+  // Function to handle selecting a question
+  async function selectQuestion(questionId) {
     let selectedQuestion = questions.find(question => question.id === questionId);
-    updateSelectedQuestionsList(selectedQuestion); // Update the selected questions list with the entire question
+    selectedQuestions.push(selectedQuestion); // Add selected question to array
+    console.log(selectedQuestions)
+    updateSelectedQuestionsList(); // Update the selected questions list
+    displaySelectedQuestions();
+    displayTheQuestions();
   }
 
-  function updateSelectedQuestionsList(selectedQuestion) {
+  // Function to update the selected questions list
+  async function updateSelectedQuestionsList() {
     let selectedQuestionsList = document.getElementById("selectedQuestions");
-    let option = document.createElement("option");
-    option.value = selectedQuestion.id;
-    option.text = selectedQuestion.description; // Display question description
-    selectedQuestionsList.appendChild(option);
+    selectedQuestionsList.innerHTML = "";
+    for (let question of selectedQuestions) {
+      let option = document.createElement("option");
+      option.value = question.id;
+      option.text = question.description;
+      selectedQuestionsList.appendChild(option);
+    }
   }
 
+  // Function to save the quiz changes
   async function saveQuizChanges() {
     let quizTitle = document.getElementById("quizTitle").value;
-    let selectedQuestionsList = document.getElementById("selectedQuestions").options;
-    let selectedQuestionObjects = [];
-
-    for (let option of selectedQuestionsList) {
-      let selectedQuestion = questions.find(question => question.id === parseInt(option.value));
-      selectedQuestionObjects.push(selectedQuestion);
+    if (selectedQuestions.length === 0 || quizTitle.trim() === "") {
+      alert("Please select questions and provide a quiz title.");
+      return;
     }
 
-    let requestBody = {
-      quizTitle: quizTitle,
-      questions: selectedQuestionObjects // Send entire question objects
+    let quizData = {
+      title: quizTitle,
+      questions: selectedQuestions.map(question => ({
+        id: question.id,
+        description: question.description,
+        choices: question.choices,
+        answer: question.answer
+      }))
     };
 
     try {
@@ -134,22 +183,30 @@
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(quizData)
       });
 
-      console.log("Response status:", response.status);
-      console.log("Response body:", await response.text()); // Log response body for debugging
-
-      if (response.status === 200) {
+      if (response.ok) {
         alert("Quiz saved successfully!");
       } else {
-        throw new Error("Error saving the quiz.");
+        alert("Error saving the quiz.");
       }
     } catch (error) {
-      console.error(error);
       alert("An error occurred while saving the quiz.");
+      console.error(error);
     }
   }
+
+  // Function to start a new quiz
+  async function saveAndStartNew() {
+    saveQuizChanges(); // Save the current quiz changes
+    // Reset the form and selected questions array
+    document.getElementById("quizForm").reset();
+    selectedQuestions = [];
+    updateSelectedQuestionsList(); // Update the selected questions list
+  }
+
+  displayTheQuestions(); // Call the function to display the questions
 </script>
 </body>
 </html>
